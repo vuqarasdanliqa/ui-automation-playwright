@@ -34,3 +34,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# Dependencies
+node_modules/
+
+# Test Reports and Results
+reports/
+cucumber-report.html
+test-results/
+
+# Environment and Secrets
+.env
+
+# Logs and OS files
+npm-debug.log*
+.DS_Store
+package-lock.json
