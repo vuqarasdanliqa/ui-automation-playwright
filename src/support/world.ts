@@ -21,5 +21,4 @@ export class CustomWorld extends World {
   }
 }
 
-// Register CustomWorld with Cucumber
 setWorldConstructor(CustomWorld);

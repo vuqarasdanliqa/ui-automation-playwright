@@ -8,7 +8,7 @@ Feature: User Authentication
     When user enters the following credentials:
       | username | testuser        |
       | password | Test12345!@Test |
-    And user clicks on the "Daxil ol" button
+    And user clicks on the "Davam et" button
     Then user should be redirected to dashboard
 
   @QASE_3
@@ -16,5 +16,5 @@ Feature: User Authentication
     When user enters the following credentials:
       | username | invaliduser      |
       | password | Test12345!@Wrong |
-    And user clicks on the "Daxil ol" button
-    Then user should see error message "İstifadəçi eyniləşdirməsi uğursuzdur"
+    And user clicks on the "Davam et" button
+    Then user should see error message "İstifadəçi eyniləşdirməsi uğursuzdur. Zəhmət olmasa, təkrar yoxlayın."

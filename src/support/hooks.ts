@@ -1,4 +1,4 @@
-import { BeforeAll, AfterAll, Before, After, Status } from "@cucumber/cucumber";
+import { BeforeAll, AfterAll, Before, After, Status, setDefaultTimeout } from "@cucumber/cucumber";
 import * as fs from "fs";
 import * as path from "path";
 import { browserManager } from "./browserManager";
@@ -6,9 +6,7 @@ import { CustomWorld } from "./world";
 import { qaseManager } from "../integration/QaseManager";
 import { startTestRun, finishTestRun } from "../integration/qaseio";
 
-/**
- * Extract Qase Case ID from scenario tags like @QASE_2
- */
+setDefaultTimeout(30000); 
 function getQaseCaseIdFromTags(tags: readonly { name: string }[]): number {
   for (const tag of tags) {
     const match = tag.name.match(/^@QASE_(\d+)$/i);
@@ -18,13 +16,11 @@ function getQaseCaseIdFromTags(tags: readonly { name: string }[]): number {
 }
 
 BeforeAll(async () => {
-  // Launch global browser
   await browserManager.launch(
     process.env.BROWSER || "chromium",
     process.env.HEADLESS !== "false"
   );
 
-  // Start Qase run only if token & project code exist
   if (process.env.QASE_API_TOKEN && process.env.QASE_PROJECT_CODE) {
     try {
       const now = new Date().toISOString();
@@ -42,7 +38,6 @@ BeforeAll(async () => {
 });
 
 Before(async function (this: CustomWorld) {
-  // Initialize fresh browser context + page per scenario
   await this.init({
     recordVideo: {
       dir: path.resolve("reports/videos-temp"),
@@ -55,8 +50,7 @@ After(async function (this: CustomWorld, scenario) {
   const safeName = scenario.pickle.name.replace(/[^a-zA-Z0-9]+/g, "_").toLowerCase();
   const timestamp = Date.now();
 
-  // ===== CRITICAL: Add result to Qase FIRST, before any cleanup =====
-  // This ensures results are collected even if screenshot/video/cleanup times out
+
   const runId = qaseManager.getRunId();
   if (runId) {
     const caseId = getQaseCaseIdFromTags(scenario.pickle.tags);
@@ -73,15 +67,12 @@ After(async function (this: CustomWorld, scenario) {
     }
   }
 
-  // ===== Now handle screenshots/videos (these might timeout) =====
   try {
-    // Capture screenshot & video only if scenario failed
     if (scenario.result?.status === Status.FAILED) {
-      // SCREENSHOT
       try {
         const screenshotBuffer = await this.page.screenshot({ 
           fullPage: true,
-          timeout: 3000 // Add timeout to prevent hanging
+          timeout: 3000
         });
         const screenshotDir = path.resolve("reports/screenshots");
         fs.mkdirSync(screenshotDir, { recursive: true });
@@ -92,7 +83,6 @@ After(async function (this: CustomWorld, scenario) {
         console.warn("Failed to capture screenshot:", err);
       }
 
-      // VIDEO
       try {
         const video = this.page.video();
         if (video) {
@@ -110,7 +100,6 @@ After(async function (this: CustomWorld, scenario) {
     console.warn("Error during screenshot/video capture:", err);
   }
 
-  // Cleanup context/page
   try {
     await this.cleanup();
   } catch (err) {
@@ -119,17 +108,15 @@ After(async function (this: CustomWorld, scenario) {
 });
 
 AfterAll(async () => {
-  // Close global browser
   await browserManager.close();
 
-  // Finish Qase run only if run exists
   const runId = qaseManager.getRunId();
   if (runId) {
     const results = qaseManager.getResults();
     console.log(`\nSending ${results.length} results to Qase run ${runId}`);
     
     if (results.length === 0) {
-      console.warn("⚠️  No results collected! Check that scenarios have @QASE_X tags");
+      console.warn("No results collected! Check that scenarios have @QASE_X tags");
     } else {
       console.log("Results to send:", JSON.stringify(results, null, 2));
     }

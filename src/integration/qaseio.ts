@@ -1,11 +1,12 @@
 import { Configuration, RunsApi, ResultsApi } from "qase-api-client";
 import * as dotenv from "dotenv";
+import { BASE_PATH } from "qase-api-client/dist/base";
 
 dotenv.config();
 
 const config = new Configuration({
   apiKey: process.env.QASE_API_TOKEN || "",
-  basePath: "https://api.qase.io/v1",
+  basePath: process.env.QASE_API_BASE_URL,
 });
 
 const runsApi: any = new RunsApi(config);
@@ -18,6 +19,9 @@ export async function startTestRun(title: string): Promise<number | undefined> {
   }
   if (!projectCode) {
     throw new Error("QASE_PROJECT_CODE is not set");
+  }
+  if(!process.env.QASE_API_BASE_URL) {
+    throw new Error("QASE_API_BASE_URL is not set");
   }
 
   const run = {
@@ -54,13 +58,13 @@ export async function finishTestRun(
 
   console.log(`\nFinishing run ${runId} with ${results.length} results`);
 
-  // CRITICAL FIX: Send results with proper time tracking
+
   for (const result of results) {
     try {
       const payload = {
         case_id: result.caseId,
         status: result.status,
-        time_ms: 1000, // Add execution time (required by some Qase API versions)
+        time_ms: 1000, 
       };
       
       console.log(`Sending result for case ${result.caseId}:`, payload);
@@ -73,7 +77,6 @@ export async function finishTestRun(
           data: err.response.data,
         });
         
-        // Common errors:
         if (err.response.status === 404) {
           console.error(`→ Case ${result.caseId} doesn't exist in project ${projectCode}`);
         } else if (err.response.status === 400) {
@@ -85,7 +88,6 @@ export async function finishTestRun(
     }
   }
 
-  // Complete the run
   try {
     console.log(`Completing run ${runId}...`);
     await runsApi.completeRun(projectCode, runId);
