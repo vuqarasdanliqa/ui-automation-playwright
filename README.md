@@ -1,5 +1,10 @@
 # 🎭 UI Automation Framework
 
+![Playwright](https://img.shields.io)
+![TypeScript](https://img.shields.io)
+![Cucumber](https://img.shields.io)
+
+
 **Modern, scalable BDD-driven UI automation framework built with Playwright, Cucumber, and TypeScript**
 
 ---
