@@ -1,30 +1,54 @@
-import { Before, After, AfterAll, Status } from "@cucumber/cucumber";
+// src/support/hooks.ts
+import { BeforeAll, AfterAll, Before, After, Status } from "@cucumber/cucumber";
+import * as fs from "fs";
+import * as path from "path";
+import { browserManager } from "./browserManager";
 import { CustomWorld } from "./world";
-import { startTestRun, finishTestRun } from "../integration/qaseio";
 
-let runId: number | undefined;
-let results: { caseId: number; status: string }[] = [];
+BeforeAll(async () => {
+  // Launch the global browser before all tests
+  await browserManager.launch(
+    process.env.BROWSER || "chromium",
+    process.env.HEADLESS !== "false"
+  );
+});
 
 Before(async function (this: CustomWorld) {
-  await this.launchBrowser();
-  if (!runId) {
-    runId = await startTestRun("Automation Run " + new Date().toISOString());
-  }
+  // Initialize a fresh browser context and page per scenario
+  await this.init({
+    recordVideo: {
+      dir: path.resolve("reports/videos-temp"),
+      size: { width: 1280, height: 720 },
+    },
+  });
 });
 
 After(async function (this: CustomWorld, scenario) {
-  await this.closeBrowser();
+  const safeName = scenario.pickle.name.replace(/[^a-zA-Z0-9]+/g, "_").toLowerCase();
+  const timestamp = Date.now();
 
-  const qaseTag = scenario.pickle.tags.find((t) => t.name.startsWith("@QASE_"));
-  if (qaseTag && runId) {
-    const caseId = parseInt(qaseTag.name.replace("@QASE_", ""), 10);
-    const status = scenario.result?.status === Status.PASSED ? "passed" : "failed";
-    results.push({ caseId, status });
+  if (scenario.result?.status === Status.FAILED) {
+    // SCREENSHOT
+    const screenshotBuffer = await this.page.screenshot({ fullPage: true });
+    const screenshotDir = path.resolve("reports/screenshots");
+    fs.mkdirSync(screenshotDir, { recursive: true });
+    const screenshotPath = path.join(screenshotDir, `${safeName}_${timestamp}.png`);
+    fs.writeFileSync(screenshotPath, screenshotBuffer);
+    await this.attach(screenshotBuffer, "image/png");
+
+    // VIDEO - avoid duplicates
+   const video = this.page.video();
+if (video) {
+  const videoPath = path.join(path.resolve("reports/videos"), `${safeName}_${timestamp}.webm`);
+  await video.saveAs(videoPath); // save to final folder
+  await video.delete();           // removes temp file from videos-temp
+}
   }
+
+  await this.cleanup();
 });
 
 AfterAll(async () => {
-  if (runId && results.length) {
-    await finishTestRun(runId, results);
-  }
+  // Close the global browser after all tests
+  await browserManager.close();
 });

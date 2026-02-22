@@ -9,7 +9,7 @@ Feature: User Authentication
       | username | testuser        |
       | password | Test12345!@Test |
     And user clicks on the "Daxil ol" button
-    Then user should be redirected to "/dashboard"
+    Then user should be redirected to dashboard
 
   @QASE_3
   Scenario: Login fails with invalid credentials

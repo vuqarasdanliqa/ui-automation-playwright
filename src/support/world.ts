@@ -1,54 +1,25 @@
-import { setWorldConstructor, IWorldOptions } from "@cucumber/cucumber";
-import { Browser, Page, chromium, firefox, webkit, BrowserContext } from "@playwright/test";
-import { LoginPage } from "../pages/LoginPage";
-import { BasePage } from "../pages/BasePage";
+import { setWorldConstructor, World } from "@cucumber/cucumber";
+import { BrowserContext, Page, BrowserContextOptions } from "playwright";
+import { browserManager } from "./browserManager";
 
-export class CustomWorld {
-  browser!: Browser;
+export class CustomWorld extends World {
   context!: BrowserContext;
   page!: Page;
-  
-  loginPage!: LoginPage;
-  currentPage!: BasePage;
 
-  constructor(options: IWorldOptions) {
-    console.debug('CustomWorld: constructor called');}
-
-  async launchBrowser() {
-    const browserName = (process.env.BROWSER || 'chromium').toLowerCase();
-    const headless = process.env.HEADLESS !== 'false'; 
-
-    console.debug(`CustomWorld: launching ${browserName} (headless=${headless})`);
-
-    const launchOptions = { headless };
-
-    switch (browserName) {
-      case 'firefox':
-        this.browser = await firefox.launch(launchOptions);
-        break;
-      case 'webkit':
-      case 'safari':
-        this.browser = await webkit.launch(launchOptions);
-        break;
-      default:
-        this.browser = await chromium.launch(launchOptions);
-    }
-
-    this.context = await this.browser.newContext();
+  async init(options?: BrowserContextOptions) {
+    const browser = browserManager.getBrowser();
+    this.context = await browser.newContext(options);
     this.page = await this.context.newPage();
-    
-    this.loginPage = new LoginPage(this.page);
-    this.currentPage = this.loginPage; 
-
-    console.debug('CustomWorld: browser and pages initialized');
   }
 
-  async closeBrowser() {
-    await this.page?.close();
-    await this.context?.close();
-    await this.browser?.close();
-    console.debug('CustomWorld: browser closed');
+  async cleanup() {
+    if (this.context) {
+      await this.context.close();
+      this.context = undefined as any;
+      this.page = undefined as any;
+    }
   }
 }
 
+// Register CustomWorld with Cucumber
 setWorldConstructor(CustomWorld);

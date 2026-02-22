@@ -32,7 +32,7 @@ When("I select {string} from the {string} dropdown", async function (option: str
 });
 
 When("user clicks on the {string} button", async function (this: CustomWorld, buttonName: string) {
-  await this.currentPage.clickElement(buttonName);
+  await this.page.click(buttonName);
 });
 
 Then("I should see {string} text", async function (expectedText: string) {
