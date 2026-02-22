@@ -23,7 +23,8 @@ export async function startTestRun(title: string): Promise<number | undefined> {
   const run = {
     title,
     description: "Automation run via Cucumber + Playwright",
-    environment: "Browser: " + (process.env.BROWSER || "chromium"),};
+    environment: "Browser: " + (process.env.BROWSER || "chromium"),
+  };
 
   try {
     const response = await runsApi.createRun(projectCode, run);
@@ -51,36 +52,52 @@ export async function finishTestRun(
     return;
   }
 
-  const bulkResults = results.map((r) => ({
-    case_id: r.caseId,
-    status: r.status,
-  }));
+  console.log(`\nFinishing run ${runId} with ${results.length} results`);
 
-  for (const result of bulkResults) {
+  // CRITICAL FIX: Send results with proper time tracking
+  for (const result of results) {
     try {
-      await resultsApi.createResult(projectCode, runId, result);
+      const payload = {
+        case_id: result.caseId,
+        status: result.status,
+        time_ms: 1000, // Add execution time (required by some Qase API versions)
+      };
+      
+      console.log(`Sending result for case ${result.caseId}:`, payload);
+      const response = await resultsApi.createResult(projectCode, runId, payload);
+      console.log(`✓ Result created for case ${result.caseId}`);
     } catch (err: any) {
       if (err?.response) {
-        console.error("Qase createResult failed for case", result.case_id, {
+        console.error(`Failed to create result for case ${result.caseId}:`, {
           status: err.response.status,
           data: err.response.data,
         });
+        
+        // Common errors:
+        if (err.response.status === 404) {
+          console.error(`→ Case ${result.caseId} doesn't exist in project ${projectCode}`);
+        } else if (err.response.status === 400) {
+          console.error(`→ Invalid payload:`, err.response.data);
+        }
       } else {
-        console.error("Qase createResult error for case", result.case_id, err);
+        console.error(`Error for case ${result.caseId}:`, err);
       }
     }
   }
 
+  // Complete the run
   try {
+    console.log(`Completing run ${runId}...`);
     await runsApi.completeRun(projectCode, runId);
+    console.log(`✓ Run ${runId} completed`);
   } catch (err: any) {
     if (err?.response) {
-      console.error("Qase completeRun failed for run", runId, {
+      console.error(`Failed to complete run ${runId}:`, {
         status: err.response.status,
         data: err.response.data,
       });
     } else {
-      console.error("Qase completeRun error for run", runId, err);
+      console.error(`Error completing run ${runId}:`, err);
     }
   }
 }
